@@ -9,24 +9,36 @@
 import Foundation
 import CommonCrypto
 
-extension NSData {
+extension Data {
     func mattress_hexString() -> String {
-        var string = String()
-        for i in UnsafeBufferPointer<UInt8>(start: UnsafeMutablePointer<UInt8>(bytes), count: length) {
-            string += NSString(format:"%02x", i) as String
-        }
-        return string
+		return self.map { String(format: "%02hhx", $0) }.joined()
     }
 
-    func mattress_MD5() -> NSData {
-        let result = NSMutableData(length: Int(CC_MD5_DIGEST_LENGTH))!
-        CC_MD5(bytes, CC_LONG(length), UnsafeMutablePointer<UInt8>(result.mutableBytes))
-        return NSData(data: result)
+    func mattress_MD5() -> Data {
+		let messageData = self
+		
+		var digestData = Data(count: Int(CC_MD5_DIGEST_LENGTH))
+		
+		_ = digestData.withUnsafeMutableBytes { digestBytes in
+			messageData.withUnsafeBytes { messageBytes in
+				CC_MD5(messageBytes, CC_LONG(messageData.count), digestBytes)
+			}
+		}
+		
+		return digestData
     }
 
-    func mattress_SHA1() -> NSData {
-        let result = NSMutableData(length: Int(CC_SHA1_DIGEST_LENGTH))!
-        CC_SHA1(bytes, CC_LONG(length), UnsafeMutablePointer<UInt8>(result.mutableBytes))
-        return NSData(data: result)
+    func mattress_SHA1() -> Data {
+		let messageData = self
+		
+		var digestData = Data(count: Int(CC_SHA1_DIGEST_LENGTH))
+		
+		_ = digestData.withUnsafeMutableBytes { digestBytes in
+			messageData.withUnsafeBytes { messageBytes in
+				CC_MD5(messageBytes, CC_LONG(messageData.count), digestBytes)
+			}
+		}
+		
+        return digestData
     }
 }

@@ -36,9 +36,10 @@ class URLProtocolTests: XCTestCase {
 
     // Mark: - Helpers
 
+	@discardableResult
     func makeMockCache() -> MockCache {
         return MockCache(memoryCapacity: 0, diskCapacity: 0, diskPath: nil, mattressDiskCapacity: 0,
-            mattressDiskPath: nil, mattressSearchPathDirectory: .DocumentDirectory, isOfflineHandler: nil)
+						 mattressDiskPath: nil, mattressSearchPathDirectory: .documentDirectory, isOfflineHandler: nil)
     }
 }
 
@@ -54,14 +55,14 @@ class MockProtocol: URLProtocol {
 
 class MockCache: URLCache {
     func fakeDeinit() {
-        MockProtocol.removeCache(self)
+		MockProtocol.removeCache(cache: self)
     }
 
     override func addToProtocol(shouldAdd: Bool) {
         if shouldAdd {
-            MockProtocol.addCache(self)
+			MockProtocol.addCache(cache: self)
         } else {
-            MockProtocol.removeCache(self)
+			MockProtocol.removeCache(cache: self)
         }
     }
 }

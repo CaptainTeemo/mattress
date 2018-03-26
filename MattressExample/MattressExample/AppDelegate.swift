@@ -14,7 +14,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
-    func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+	private func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
         let kB = 1024
         let MB = 1024 * kB
         let GB = 1024 * MB
@@ -27,10 +27,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return true
         }
         let urlCache = Mattress.URLCache(memoryCapacity: 20 * MB, diskCapacity: 20 * MB, diskPath: nil,
-            mattressDiskCapacity: 1 * GB, mattressDiskPath: nil, mattressSearchPathDirectory: .DocumentDirectory,
+										 mattressDiskCapacity: 1 * GB, mattressDiskPath: nil, mattressSearchPathDirectory: .documentDirectory,
             isOfflineHandler: isOfflineHandler)
-
-        NSURLCache.setSharedURLCache(urlCache)
+		
+		NSURLCache.shared = urlCache
         return true
     }
 }

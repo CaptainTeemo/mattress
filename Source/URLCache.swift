@@ -8,8 +8,9 @@
 
 import Foundation
 
+public typealias NSURLCache = Foundation.URLCache
 /**
-    Key used for a boolean property set on NSURLRequests by a
+    Key used for a boolean property set on URLRequests by a
     WebViewCacher to indicate they should be stored in the cache.
 */
 public let MattressCacheRequestPropertyKey = "MattressCacheRequest"
@@ -57,8 +58,8 @@ public class URLCache: NSURLCache {
 
         :returns: A boolean of whether the request should be cached.
     */
-    class func requestShouldBeStoredInMattress(request: NSURLRequest) -> Bool {
-        if let value = NSURLProtocol.propertyForKey(MattressCacheRequestPropertyKey, inRequest: request) as? Bool {
+    class func requestShouldBeStoredInMattress(request: URLRequest) -> Bool {
+		if let value = NSURLProtocol.property(forKey: MattressCacheRequestPropertyKey, in: request) as? Bool {
             return value
         }
         return false
@@ -83,16 +84,16 @@ public class URLCache: NSURLCache {
             determine if the Mattress cache should be used
     */
     public init(memoryCapacity: Int, diskCapacity: Int, diskPath path: String?, mattressDiskCapacity: Int, mattressDiskPath: String?,
-        mattressSearchPathDirectory searchPathDirectory: NSSearchPathDirectory, isOfflineHandler: (() -> Bool)?)
+				mattressSearchPathDirectory searchPathDirectory: FileManager.SearchPathDirectory, isOfflineHandler: (() -> Bool)?)
     {
         diskCache = DiskCache(path: mattressDiskPath, searchPathDirectory: searchPathDirectory, maxCacheSize: mattressDiskCapacity)
         self.isOfflineHandler = isOfflineHandler
         super.init(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: path)
-        addToProtocol(true)
+		addToProtocol(shouldAdd: true)
     }
 
     deinit {
-        addToProtocol(false)
+		addToProtocol(shouldAdd: false)
     }
 
     /**
@@ -102,9 +103,9 @@ public class URLCache: NSURLCache {
     */
     func addToProtocol(shouldAdd: Bool) {
         if shouldAdd {
-            URLProtocol.addCache(self)
+			URLProtocol.addCache(cache: self)
         } else {
-            URLProtocol.removeCache(self)
+			URLProtocol.removeCache(cache: self)
         }
     }
 
@@ -117,9 +118,9 @@ public class URLCache: NSURLCache {
         :returns: The WebViewCacher responsible for the request if found,
             otherwise nil.
     */
-    func webViewCacherOriginatingRequest(request: NSURLRequest) -> WebViewCacher? {
+    func webViewCacherOriginatingRequest(request: URLRequest) -> WebViewCacher? {
         for cacher in cachers {
-            if cacher.didOriginateRequest(request) {
+			if cacher.didOriginateRequest(request: request) {
                 return cacher
             }
         }
@@ -131,13 +132,13 @@ public class URLCache: NSURLCache {
         is valid (statusCode < 400).
     
         :param: cachedResponse The NSCachedURLResponse to store in diskCache.
-        :param: request The NSURLRequest this response is associated with.
+        :param: request The URLRequest this response is associated with.
     */
-    func storeCachedResponseInDiskCache(cachedResponse: NSCachedURLResponse, forRequest request: NSURLRequest) {
+	func storeCachedResponseInDiskCache(cachedResponse: CachedURLResponse, forRequest request: URLRequest) {
         // We should never store failure responses
-        if let httpResponse = cachedResponse.response as? NSHTTPURLResponse {
+		if let httpResponse = cachedResponse.response as? HTTPURLResponse {
             if httpResponse.statusCode < 400 {
-                diskCache.storeCachedResponse(cachedResponse, forRequest: request)
+				diskCache.storeCachedResponse(cachedResponse: cachedResponse, forRequest: request)
             }
         }
     }
@@ -148,28 +149,28 @@ public class URLCache: NSURLCache {
         diskCache.clearCache()
     }
 
-    override public func storeCachedResponse(cachedResponse: NSCachedURLResponse, forRequest request: NSURLRequest) {
-        if URLCache.requestShouldBeStoredInMattress(request) {
-            storeCachedResponseInDiskCache(cachedResponse, forRequest: request)
+	public override func storeCachedResponse(_ cachedResponse: CachedURLResponse, for request: URLRequest) {
+		if URLCache.requestShouldBeStoredInMattress(request: request) {
+			storeCachedResponseInDiskCache(cachedResponse: cachedResponse, forRequest: request)
         } else {
-            super.storeCachedResponse(cachedResponse, forRequest: request)
+			super.storeCachedResponse(cachedResponse, for: request)
             // If we've already stored this in the Mattress cache, update it
-            if diskCache.hasCacheForRequest(request) {
-                storeCachedResponseInDiskCache(cachedResponse, forRequest: request)
+			if diskCache.hasCacheForRequest(request: request) {
+				storeCachedResponseInDiskCache(cachedResponse: cachedResponse, forRequest: request)
             }
         }
     }
 
-    override public func cachedResponseForRequest(request: NSURLRequest) -> NSCachedURLResponse? {
-        let cachedResponse = diskCache.cachedResponseForRequest(request)
+	override public func cachedResponse(for request: URLRequest) -> CachedURLResponse? {
+		let cachedResponse = diskCache.cachedResponseForRequest(request: request)
         if cachedResponse != nil {
             return cachedResponse
         }
-        return super.cachedResponseForRequest(request)
+		return super.cachedResponse(for: request)
     }
 
-    internal func hasMattressCachedResponseForRequest(request: NSURLRequest) -> Bool{
-        return diskCache.hasCachedResponseForRequest(request)
+    internal func hasMattressCachedResponseForRequest(request: URLRequest) -> Bool{
+		return diskCache.hasCachedResponseForRequest(request: request)
     }
 
     /**
@@ -187,23 +188,23 @@ public class URLCache: NSURLCache {
         :param: failureHandler A handler with a single error parameter called
             in case of failure.
     */
-    public func diskCacheURL(url: NSURL,
-                      loadedHandler: WebViewLoadedHandler,
+    public func diskCacheURL(url: URL,
+							 loadedHandler: @escaping WebViewLoadedHandler,
                     completeHandler: (() ->Void)? = nil,
-                     failureHandler: ((NSError) ->Void)? = nil) {
+                     failureHandler: ((Error) ->Void)? = nil) {
         let webViewCacher = WebViewCacher()
         
-        synchronized(self) {
+		synchronized(lockObj: self) {
             self.cachers.append(webViewCacher)
         }
         
         var failureHandler = failureHandler
         var completeHandler = completeHandler
 
-        webViewCacher.mattressCacheURL(url, loadedHandler: loadedHandler, completionHandler: { (webViewCacher) -> () in
-            synchronized(self) {
-                if let index = self.cachers.indexOf(webViewCacher) {
-                    self.cachers.removeAtIndex(index)
+		webViewCacher.mattressCacheURL(url: url, loadedHandler: loadedHandler, completionHandler: { (webViewCacher) -> () in
+			synchronized(lockObj: self) {
+				if let index = self.cachers.index(of: webViewCacher) {
+					self.cachers.remove(at: index)
                 }
                 
                 completeHandler?()
